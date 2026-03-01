@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
   <meta name="theme-color" content="#3D1670">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Magic Strategist">
@@ -640,6 +641,117 @@
     }
 
     /* ══════════════════════════════════════════
+       CONFIG OVERLAY
+       ══════════════════════════════════════════ */
+    .config-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 20, 37, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .config-overlay.hidden {
+      display: none;
+    }
+
+    .config-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .config-card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--magic-primary);
+      margin-bottom: 4px;
+    }
+
+    .config-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .config-card label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .config-card input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s;
+      background: var(--magic-tint);
+    }
+
+    .config-card input:focus {
+      border-color: var(--magic-mid);
+      box-shadow: 0 0 0 3px rgba(74, 26, 138, 0.08);
+    }
+
+    .config-card input::placeholder {
+      color: var(--text-tertiary);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .config-connect-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px;
+      background: var(--magic-primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .config-connect-btn:hover {
+      background: var(--magic-mid);
+    }
+
+    .config-connect-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .config-error {
+      color: #B91C1C;
+      font-size: 12px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .config-error.visible {
+      display: block;
+    }
+
+    /* ══════════════════════════════════════════
        SCROLLBAR (desktop)
        ══════════════════════════════════════════ */
     @media (min-width: 768px) {
@@ -674,6 +786,31 @@
   <div class="splash" id="splash">
     <div class="splash-mark">🔮</div>
     <div class="splash-text">Magic Loyalty Strategist</div>
+  </div>
+
+  <!-- Config overlay (shown on first launch) -->
+  <div class="config-overlay hidden" id="configOverlay">
+    <div class="config-card">
+      <h2>🔮 Connect to Magic</h2>
+      <p>
+        Paste your Apps Script deployment URL below. You'll find it in the Apps Script editor
+        under <strong>Deploy → Manage deployments</strong>.
+      </p>
+      <label for="configUrl">Apps Script URL</label>
+      <input
+        type="url"
+        id="configUrl"
+        placeholder="https://script.google.com/macros/s/…/exec"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <div class="config-error" id="configError">
+        Could not connect. Check the URL and make sure the deployment is set to "Anyone".
+      </div>
+      <button class="config-connect-btn" id="configConnectBtn" onclick="connectConfig()">
+        Connect
+      </button>
+    </div>
   </div>
 
   <div class="app-shell">
@@ -734,73 +871,138 @@
 
   <script>
     // ══════════════════════════════════════════
-    // CONFIGURATION — UPDATE THIS
+    // CONFIGURATION — localStorage-based
     // ══════════════════════════════════════════
-    var APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
-    // e.g. 'https://script.google.com/macros/s/AKfycb.../exec'
+    var STORAGE_KEY = 'magic_loyalty_strategist_url';
+    var APPS_SCRIPT_URL = localStorage.getItem(STORAGE_KEY) || '';
+
+    // ══════════════════════════════════════════
+    // CONFIG OVERLAY LOGIC
+    // ══════════════════════════════════════════
+    function showConfigOverlay() {
+      document.getElementById('configOverlay').classList.remove('hidden');
+      var input = document.getElementById('configUrl');
+      if (APPS_SCRIPT_URL) input.value = APPS_SCRIPT_URL;
+      input.focus();
+    }
+
+    function hideConfigOverlay() {
+      document.getElementById('configOverlay').classList.add('hidden');
+    }
+
+    function connectConfig() {
+      var input = document.getElementById('configUrl');
+      var url = input.value.trim();
+      var errorEl = document.getElementById('configError');
+      var btn = document.getElementById('configConnectBtn');
+
+      errorEl.classList.remove('visible');
+
+      if (!url || url.indexOf('script.google.com') === -1) {
+        errorEl.textContent = 'Please enter a valid Apps Script deployment URL.';
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+
+      // Test the connection with a ping
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ ping: true }),
+        redirect: 'follow'
+      })
+      .then(function(response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      })
+      .then(function(data) {
+        // Connected successfully (or at least got a valid response)
+        APPS_SCRIPT_URL = url;
+        localStorage.setItem(STORAGE_KEY, url);
+        hideConfigOverlay();
+        btn.disabled = false;
+        btn.textContent = 'Connect';
+        // Show welcome message now
+        showWelcome();
+      })
+      .catch(function(err) {
+        // Even if ping fails, the URL might still work for chat
+        // (doPost might not handle ping yet). Save it anyway.
+        console.warn('Ping test failed, saving URL anyway:', err.message);
+        APPS_SCRIPT_URL = url;
+        localStorage.setItem(STORAGE_KEY, url);
+        hideConfigOverlay();
+        btn.disabled = false;
+        btn.textContent = 'Connect';
+        showWelcome();
+      });
+    }
+
+    // Allow Enter in config input
+    document.getElementById('configUrl').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); connectConfig(); }
+    });
 
     // ══════════════════════════════════════════
     // STATE
     // ══════════════════════════════════════════
     var conversationHistory = [];
     var isWaiting = false;
-    var messageCount = 0;
     var statusTimers = [];
+    var messageCount = 0;
+
+    // ══════════════════════════════════════════
+    // MARKED CONFIG
+    // ══════════════════════════════════════════
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      headerIds: false,
+      mangle: false
+    });
 
     // ══════════════════════════════════════════
     // INIT
     // ══════════════════════════════════════════
-    marked.setOptions({ breaks: true, gfm: true });
-
-    // Auto-resize textarea
-    var textarea = document.getElementById('userInput');
-    textarea.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
-
-    // Dismiss splash after content loads
     window.addEventListener('load', function() {
+      // Hide splash
       setTimeout(function() {
         document.getElementById('splash').classList.add('hidden');
-      }, 600);
 
-      // Show welcome message
-      addMessage('assistant',
-        'Welcome to Magic! 🔮\n\n' +
-        'I\'m your AI Loyalty Strategist. I\'ll help you design offers that bring Magic\'s ' +
-        '**185,000 verified members** to your business.\n\n' +
-        'Should we speak in **English** or **Ελληνικά**?'
-      );
+        if (!APPS_SCRIPT_URL) {
+          // First launch — show config overlay
+          showConfigOverlay();
+        } else {
+          // URL already saved — show welcome
+          showWelcome();
+        }
+      }, 800);
+
+      // Auto-grow textarea
+      var input = document.getElementById('userInput');
+      input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      });
     });
 
-    // ══════════════════════════════════════════
-    // KEYBOARD HANDLING
-    // ══════════════════════════════════════════
-    function handleKeydown(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    }
-
-    // Handle mobile keyboard resize
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', function() {
-        // Scroll chat to bottom when keyboard opens
-        var chatArea = document.getElementById('chatArea');
-        chatArea.scrollTop = chatArea.scrollHeight;
-      });
+    function showWelcome() {
+      addMessage('assistant',
+        'Welcome to Magic! 🔮\n\n' +
+        'I\'m your AI Loyalty Strategist. I\'ll help you design offers that ' +
+        'bring Magic\'s **185,000 verified members** to your business.\n\n' +
+        'Should we speak in **English** or **Ελληνικά**?'
+      );
     }
 
     // ══════════════════════════════════════════
-    // RESPONSE CLEANING
+    // CLEAN RESPONSE (hide internal data from display)
     // ══════════════════════════════════════════
     function cleanResponse(text) {
-      // Remove session data section (📊 header through code block)
-      text = text.replace(/📊[\s\S]*?```[\s\S]*?```/g, '');
-
-      // Remove standalone code blocks containing GS- data
+      // Remove session data in code blocks
       text = text.replace(/```[\s]*\n?[\s]*(?:SESSION_ID\|)?GS-[\s\S]*?```/g, '');
 
       // Remove bare GS- data lines
@@ -887,24 +1089,19 @@
       if (isLongResponse) {
         var messages = [
           { delay: 0, text: '' },
-          { delay: 2500, text: 'Reviewing your business profile...' },
-          { delay: 6000, text: 'Analysing your products and audience...' },
-          { delay: 10000, text: 'Designing offer strategies...' },
-          { delay: 16000, text: 'Crafting your personalised offers...' },
-          { delay: 23000, text: 'Almost there...' }
+          { delay: 3000, text: 'designing your offers...' },
+          { delay: 7000, text: 'analysing your market...' },
+          { delay: 12000, text: 'crafting strategies...' }
         ];
         messages.forEach(function(msg) {
           statusTimers.push(setTimeout(function() {
             statusEl.textContent = msg.text;
           }, msg.delay));
         });
-      } else {
-        statusEl.textContent = '';
       }
 
-      // Scroll to show typing
-      var chatArea = document.getElementById('chatArea');
-      chatArea.scrollTop = chatArea.scrollHeight;
+      document.getElementById('chatArea').scrollTop =
+        document.getElementById('chatArea').scrollHeight;
     }
 
     function stopTypingStatus() {
@@ -919,10 +1116,26 @@
     }
 
     // ══════════════════════════════════════════
-    // SEND MESSAGE (via fetch to Apps Script)
+    // KEYBOARD HANDLING
+    // ══════════════════════════════════════════
+    function handleKeydown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // SEND MESSAGE
     // ══════════════════════════════════════════
     function sendMessage() {
       if (isWaiting) return;
+
+      // If no URL configured, re-show config
+      if (!APPS_SCRIPT_URL) {
+        showConfigOverlay();
+        return;
+      }
 
       var input = document.getElementById('userInput');
       var text = input.value.trim();
@@ -931,11 +1144,6 @@
       addMessage('user', text);
       input.value = '';
       input.style.height = 'auto';
-
-      // Blur on mobile to dismiss keyboard
-      if (window.innerWidth < 768) {
-        input.blur();
-      }
 
       conversationHistory.push({ role: 'user', text: text });
       messageCount++;
@@ -949,7 +1157,8 @@
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ history: conversationHistory })
+        body: JSON.stringify({ history: conversationHistory }),
+        redirect: 'follow'
       })
       .then(function(response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
