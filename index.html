@@ -641,117 +641,6 @@
     }
 
     /* ══════════════════════════════════════════
-       CONFIG OVERLAY
-       ══════════════════════════════════════════ */
-    .config-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(26, 20, 37, 0.85);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-
-    .config-overlay.hidden {
-      display: none;
-    }
-
-    .config-card {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      padding: 32px 28px;
-      max-width: 420px;
-      width: 100%;
-      box-shadow: var(--shadow-lg);
-    }
-
-    .config-card h2 {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--magic-primary);
-      margin-bottom: 4px;
-    }
-
-    .config-card p {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    .config-card label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 6px;
-    }
-
-    .config-card input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 13px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      color: var(--text-primary);
-      outline: none;
-      transition: border-color 0.2s;
-      background: var(--magic-tint);
-    }
-
-    .config-card input:focus {
-      border-color: var(--magic-mid);
-      box-shadow: 0 0 0 3px rgba(74, 26, 138, 0.08);
-    }
-
-    .config-card input::placeholder {
-      color: var(--text-tertiary);
-      font-family: 'DM Sans', sans-serif;
-    }
-
-    .config-connect-btn {
-      width: 100%;
-      margin-top: 16px;
-      padding: 12px;
-      background: var(--magic-primary);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: 600;
-      font-family: 'DM Sans', sans-serif;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .config-connect-btn:hover {
-      background: var(--magic-mid);
-    }
-
-    .config-connect-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .config-error {
-      color: #B91C1C;
-      font-size: 12px;
-      margin-top: 8px;
-      display: none;
-    }
-
-    .config-error.visible {
-      display: block;
-    }
-
-    /* ══════════════════════════════════════════
        SCROLLBAR (desktop)
        ══════════════════════════════════════════ */
     @media (min-width: 768px) {
@@ -786,31 +675,6 @@
   <div class="splash" id="splash">
     <div class="splash-mark">🔮</div>
     <div class="splash-text">Magic Loyalty Strategist</div>
-  </div>
-
-  <!-- Config overlay (shown on first launch) -->
-  <div class="config-overlay hidden" id="configOverlay">
-    <div class="config-card">
-      <h2>🔮 Connect to Magic</h2>
-      <p>
-        Paste your Apps Script deployment URL below. You'll find it in the Apps Script editor
-        under <strong>Deploy → Manage deployments</strong>.
-      </p>
-      <label for="configUrl">Apps Script URL</label>
-      <input
-        type="url"
-        id="configUrl"
-        placeholder="https://script.google.com/macros/s/…/exec"
-        autocomplete="off"
-        spellcheck="false"
-      >
-      <div class="config-error" id="configError">
-        Could not connect. Check the URL and make sure the deployment is set to "Anyone".
-      </div>
-      <button class="config-connect-btn" id="configConnectBtn" onclick="connectConfig()">
-        Connect
-      </button>
-    </div>
   </div>
 
   <div class="app-shell">
@@ -871,80 +735,9 @@
 
   <script>
     // ══════════════════════════════════════════
-    // CONFIGURATION — localStorage-based
+    // CONFIGURATION — hardcoded for merchant access
     // ══════════════════════════════════════════
-    var STORAGE_KEY = 'magic_loyalty_strategist_url';
-    var APPS_SCRIPT_URL = localStorage.getItem(STORAGE_KEY) || '';
-
-    // ══════════════════════════════════════════
-    // CONFIG OVERLAY LOGIC
-    // ══════════════════════════════════════════
-    function showConfigOverlay() {
-      document.getElementById('configOverlay').classList.remove('hidden');
-      var input = document.getElementById('configUrl');
-      if (APPS_SCRIPT_URL) input.value = APPS_SCRIPT_URL;
-      input.focus();
-    }
-
-    function hideConfigOverlay() {
-      document.getElementById('configOverlay').classList.add('hidden');
-    }
-
-    function connectConfig() {
-      var input = document.getElementById('configUrl');
-      var url = input.value.trim();
-      var errorEl = document.getElementById('configError');
-      var btn = document.getElementById('configConnectBtn');
-
-      errorEl.classList.remove('visible');
-
-      if (!url || url.indexOf('script.google.com') === -1) {
-        errorEl.textContent = 'Please enter a valid Apps Script deployment URL.';
-        errorEl.classList.add('visible');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Connecting...';
-
-      // Test the connection with a ping
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ ping: true }),
-        redirect: 'follow'
-      })
-      .then(function(response) {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
-      })
-      .then(function(data) {
-        // Connected successfully (or at least got a valid response)
-        APPS_SCRIPT_URL = url;
-        localStorage.setItem(STORAGE_KEY, url);
-        hideConfigOverlay();
-        btn.disabled = false;
-        btn.textContent = 'Connect';
-        // Show welcome message now
-        showWelcome();
-      })
-      .catch(function(err) {
-        // Even if ping fails, the URL might still work for chat
-        // (doPost might not handle ping yet). Save it anyway.
-        console.warn('Ping test failed, saving URL anyway:', err.message);
-        APPS_SCRIPT_URL = url;
-        localStorage.setItem(STORAGE_KEY, url);
-        hideConfigOverlay();
-        btn.disabled = false;
-        btn.textContent = 'Connect';
-        showWelcome();
-      });
-    }
-
-    // Allow Enter in config input
-    document.getElementById('configUrl').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); connectConfig(); }
-    });
+    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwzCej4ZqXEXPuyFcseccnM2cn4ez_Xu_AYc6_mY4oP6aEVkLzetK1zntYHCMUp9xdBCw/exec';
 
     // ══════════════════════════════════════════
     // STATE
@@ -971,14 +764,7 @@
       // Hide splash
       setTimeout(function() {
         document.getElementById('splash').classList.add('hidden');
-
-        if (!APPS_SCRIPT_URL) {
-          // First launch — show config overlay
-          showConfigOverlay();
-        } else {
-          // URL already saved — show welcome
-          showWelcome();
-        }
+        showWelcome();
       }, 800);
 
       // Auto-grow textarea
@@ -1130,12 +916,6 @@
     // ══════════════════════════════════════════
     function sendMessage() {
       if (isWaiting) return;
-
-      // If no URL configured, re-show config
-      if (!APPS_SCRIPT_URL) {
-        showConfigOverlay();
-        return;
-      }
 
       var input = document.getElementById('userInput');
       var text = input.value.trim();
